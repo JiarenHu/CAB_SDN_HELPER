@@ -18,6 +18,7 @@ include_directories(${libcab_include})
 add_executable(CABDaemon CABDaemon.cpp)
 add_executable(trace2pcap pcap_dump.cpp)
 add_executable(FlowGen FlowGen.cpp)
+add_executable(FlowGen2 FlowGen2.cpp)
 if(UNIX)
 	target_link_libraries(
 		CABDaemon
@@ -33,6 +34,11 @@ if(UNIX)
 		)
     target_link_libraries(
         FlowGen
+        pcap
+        rt
+        )
+    target_link_libraries(
+        FlowGen2
         pcap
         rt
         )
