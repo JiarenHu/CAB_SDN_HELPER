@@ -7,7 +7,7 @@
 #include <boost/filesystem.hpp>
 #include <pcap.h>
 #include "header_def.h"
-#include "Address.hpp"
+#include "../CAB_SDN/Address.hpp"
 using namespace std;
 
 struct packet {
@@ -21,13 +21,6 @@ namespace fs = boost::filesystem;
 namespace io = boost::iostreams;
 
 int main(int argc, char * argv[]) {
-    cout << "unsigned int : " << sizeof(unsigned int) << endl;
-    cout << "unsigned long : " << sizeof(unsigned long) << endl;
-    cout << "ethernet packet length : " << sizeof(sniff_ethernet) << endl;
-    cout << "ip packet length : " << sizeof(sniff_ip) << endl;
-    cout << "tcp packet length : " << sizeof(sniff_tcp) << endl;
-    cout << "full stack packet length : " << sizeof(packet) << endl;
-
     if(argc < 3) {
         cerr << "Usage: 2pcap_dump {path/to/trace/file/} {path/to/tcpdump/file}" << endl;
         return 1;

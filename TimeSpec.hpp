@@ -32,11 +32,11 @@ public:
     {
         if(time_point_.tv_sec != a.time_point_.tv_sec)
         {
-            return time_point_.tv_sec > a.time_point_.tv_sec ? true : false;
+            return time_point_.tv_sec < a.time_point_.tv_sec ? true : false;
         }
         else
         {
-            return time_point_.tv_nsec > a.time_point_.tv_nsec ? true : false;
+            return time_point_.tv_nsec < a.time_point_.tv_nsec ? true : false;
         }
     };
 
@@ -45,17 +45,29 @@ public:
     timespec time_point_;
 };
 
-TimeSpec operator + (const TimeSpec & a, const TimeSpec &b){
-   TimeSpec rs;
-   rs.time_point_.tv_sec = a.time_point_.tv_sec + b.time_point_.tv_sec;
-   rs.time_point_.tv_nsec = a.time_point_.tv_nsec + b.time_point_.tv_nsec;
-   if(rs.time_point_.tv_nsec > NSEC_MAX){
-    rs.time_point_.tv_sec -= 1;
-    rs.time_point_.tv_nsec -= NSEC_MAX;
-   }
-   return rs;
+TimeSpec operator + (const TimeSpec & a, const TimeSpec &b)
+{
+    TimeSpec rs;
+    rs.time_point_.tv_sec = a.time_point_.tv_sec + b.time_point_.tv_sec;
+    rs.time_point_.tv_nsec = a.time_point_.tv_nsec + b.time_point_.tv_nsec;
+    if(rs.time_point_.tv_nsec > NSEC_MAX)
+    {
+        rs.time_point_.tv_sec -= 1;
+        rs.time_point_.tv_nsec -= NSEC_MAX;
+    }
+    return rs;
 }
 
-TimeSpec operator - (const TimeSpec & a, const TimeSpec &b){
-    
+TimeSpec operator - (const TimeSpec & a, const TimeSpec &b)
+{
+
+    TimeSpec rs;
+    long nsec = a.time_point_.tv_nsec - b.time_point_.tv_nsec;
+    rs.time_point_.tv_sec = a.time_point_.tv_sec - b.time_point_.tv_sec;
+    if(nsec < 0){
+        nsec += NSEC_MAX;
+        rs.time_point_.tv_sec -=1;
+    }
+    rs.time_point_.tv_nsec = nsec;
+    return rs;
 }

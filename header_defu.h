@@ -57,7 +57,7 @@ typedef uint32_t tcp_seq;
 struct sniff_tcp
 {
     sniff_tcp():
-        th_offx2(0x50), th_flags(TH_ACK),th_sum(0x00) {}
+        th_offx2(0x50), th_flags(TH_ACK),th_sum(0x00),th_urp(0x00){}
     uint16_t th_sport;	/* source port */
     uint16_t th_dport;	/* destination port */
     tcp_seq th_seq;		/* sequence number */
