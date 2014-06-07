@@ -8,33 +8,39 @@
 #include <string>
 #include <utility>
 #include <boost/asio.hpp>
+#include <boost/log/trivial.hpp>
 #include <utility>
 #include "Message.hpp"
-#include "BucketTree.h"
+#include "../CAB_SDN/BucketTree.h"
 
 using boost::asio::ip::tcp;
 
 
-class Adapter {
-  public:
-    Adapter(bucket_tree && bTree):bTree_(std::forward<bucket_tree>(bTree)) {
+class Adapter
+{
+public:
+    Adapter(bucket_tree & bTree):bTree_(bTree)
+    {
     }
 
-    void process(Message & msg) {
+    void process(Message & msg)
+    {
         char * body = msg.body();
         addr_5tup pkt_h;
-        for(uint32_t i = 0; i != 4; ++i) {
+        for(uint32_t i = 0; i != 4; ++i)
+        {
             uint32_t word = 0;
             memcpy(&word,body + i*4,4);
             word = ntohl(word);
             pkt_h.addrs[i] = word;
-            std::cerr << pkt_h.addrs[i] << std::endl;
         }
         msg.clear();
         std::pair<bucket*, int> bpair;
         bpair = bTree_.search_bucket(pkt_h,bTree_.root);
         bucket * b = bpair.first;
-        if(b != nullptr) {
+        BOOST_LOG_TRIVIAL(debug) << b->get_str() << endl;
+        if(b != nullptr)
+        {
             msg.append_uint(b->addrs[0].pref);
             msg.append_uint(b->addrs[0].mask);
             msg.append_uint(b->addrs[1].pref);
@@ -45,9 +51,9 @@ class Adapter {
             msg.append_uint(b->addrs[3].mask);
 
             auto & rule_ids = b->related_rules;
-            std::cerr <<"rules number : " <<b->related_rules.size() << std::endl;
             auto & rule_list = bTree_.rList->list;
-            for(uint32_t id : rule_ids) {
+            for(uint32_t id : rule_ids)
+            {
                 msg.append_uint(rule_list[id].hostpair[0].pref);
                 msg.append_uint(rule_list[id].hostpair[0].mask);
                 msg.append_uint(rule_list[id].hostpair[1].pref);
@@ -59,11 +65,10 @@ class Adapter {
             }
 
         }
-        std::cerr <<"reply message length : "<< msg.length() << std::endl;
         msg.encode_header();
     }
-  private:
-    bucket_tree bTree_;
+private:
+    bucket_tree & bTree_;
 };
 
 
@@ -77,65 +82,85 @@ typedef std::set<session_ptr> session_container;
 //----------------------------------------------------------------------
 
 class session
-    : public std::enable_shared_from_this<session> {
-  public:
+    : public std::enable_shared_from_this<session>
+{
+public:
     session(tcp::socket && socket, session_container & container, Adapter & adapter)
         : socket_(std::forward<tcp::socket>(socket)),
           container_(container),
-          adapter_(adapter) {
+          adapter_(adapter)
+    {
     }
 
-    void start() {
+    void start()
+    {
         container_.insert(shared_from_this());
         do_read_header();
     }
 
-    ~session() {
-        if(socket_.is_open()) {
+    ~session()
+    {
+        if(socket_.is_open())
+        {
             socket_.close();
         }
     }
-  private:
-    void do_read_header() {
+private:
+    void do_read_header()
+    {
         auto self(shared_from_this());
         boost::asio::async_read(socket_,
                                 boost::asio::buffer(msg_.data(), Message::header_length),
-        [this, self](boost::system::error_code ec, std::uint32_t /*length*/) {
-            if (!ec && msg_.decode_header()) {
+                                [this, self](boost::system::error_code ec, std::uint32_t /*length*/)
+        {
+            if (!ec && msg_.decode_header())
+            {
                 do_read_body();
-            } else {
+            }
+            else
+            {
                 handle_error();
                 container_.erase(shared_from_this());
             }
         });
     }
 
-    void do_read_body() {
+    void do_read_body()
+    {
         auto self(shared_from_this());
         boost::asio::async_read(socket_,
                                 boost::asio::buffer(msg_.body(), msg_.body_length()),
-        [this, self](boost::system::error_code ec, std::uint32_t /*length*/) {
-            if (!ec) {
+                                [this, self](boost::system::error_code ec, std::uint32_t /*length*/)
+        {
+            if (!ec)
+            {
                 socket_.shutdown(tcp::socket::shutdown_receive);
                 //do our job.
                 adapter_.process(msg_);
                 do_write(msg_);
-            } else {
+            }
+            else
+            {
                 handle_error();
                 container_.erase(shared_from_this());
             }
         });
     }
 
-    void do_write(const Message & msg) {
+    void do_write(const Message & msg)
+    {
         auto self(shared_from_this());
         boost::asio::async_write(socket_,
                                  boost::asio::buffer(msg.data(),
                                          msg.length()),
-        [this, self](boost::system::error_code ec, std::uint32_t /*length*/) {
-            if (!ec) {
+                                 [this, self](boost::system::error_code ec, std::uint32_t /*length*/)
+        {
+            if (!ec)
+            {
                 socket_.shutdown(tcp::socket::shutdown_send);
-            } else {
+            }
+            else
+            {
                 handle_error();
             }
             container_.erase(shared_from_this());
@@ -143,8 +168,10 @@ class session
     }
 
 
-    void handle_error() {
-        if(socket_.is_open()) {
+    void handle_error()
+    {
+        if(socket_.is_open())
+        {
             socket_.close();
         }
     }
@@ -157,23 +184,28 @@ class session
 
 //----------------------------------------------------------------------
 
-class chat_server {
-  public:
+class chat_server
+{
+public:
     chat_server(boost::asio::io_service& ios,
                 const tcp::endpoint& endpoint,
                 Adapter && adapter)
         : ios_(ios),
           acceptor_(ios, endpoint),
-          adapter_(std::forward<Adapter>(adapter)) {
+          adapter_(std::forward<Adapter>(adapter)),
+          skt(ios)
+    {
         do_accept();
     }
 
-  private:
-    void do_accept() {
-        tcp::socket skt(ios_);
+private:
+    void do_accept()
+    {
         acceptor_.async_accept(skt,
-        [&](boost::system::error_code ec) {
-            if (!ec) {
+                               [this](boost::system::error_code ec)
+        {
+            if (!ec)
+            {
                 std::make_shared<session>(std::move(skt), container_, adapter_)->start();
             }
 
@@ -185,32 +217,55 @@ class chat_server {
     Adapter adapter_;
     //session life cycle management
     std::set<std::shared_ptr<session>> container_;
+    tcp::socket skt;
 };
 
 //----------------------------------------------------------------------
+//void boost_log_init()
+//{
+//    namespace logging = boost::log;
+//    namespace keywords = boost::log::keywords;
+//    namespace sinks = boost::log::sinks;
+//    logging::add_file_log
+//    (
+//        keywords::file_name = "sample_%N.log",
+//        keywords::rotation_size = 10 * 1024 * 1024,
+//        keywords::time_based_rotation = sinks::file::rotation_at_time_point(0, 0, 0),
+//        keywords::format = "[%TimeStamp%]: %Message%"
+//    );
+//
+//    logging::core::get()->set_filter
+//    (
+//        logging::trivial::severity >= logging::trivial::debug
+//    );
+//}
 
-int main(int argc, char* argv[]) {
-    if(argc < 3) {
+int main(int argc, char* argv[])
+{
+    if(argc < 3)
+    {
         std::cerr << "Usage: CABDeamon {/path/to/rule/file} <port>"
                   << std::endl;
+        return 1;
     }
-    std::cerr << sizeof(uint32_t) << std::endl;
+//    boost_log_init();
     //initialize CAB
     std::string rulefile(argv[1]);
-    rule_list rList(rulefile);
-    std::cerr << "loading rule : " << rList.list.size() << std::endl;
-    bucket_tree bTree(rList, uint32_t(20));
-    Adapter adapter(std::move(bTree));
-
-    try {
+    rule_list rList(rulefile,true);
+    BOOST_LOG_TRIVIAL(debug) << "Loading rules : " << rList.list.size() << std::endl;
+    bucket_tree bTree(rList, 15, true);
+    Adapter adapter(bTree);
+    try
+    {
         boost::asio::io_service io_service;
-
         tcp::endpoint endpoint(tcp::v4(), std::atoi(argv[2]));
         chat_server server(io_service, endpoint , std::move(adapter));
-
+        BOOST_LOG_TRIVIAL(info) << "Deamon running..." << endl;
         io_service.run();
-    } catch (std::exception& e) {
-        std::cerr << "Exception: " << e.what() << "\n";
+    }
+    catch (std::exception& e)
+    {
+        BOOST_LOG_TRIVIAL(fatal) << "Exception: " << e.what() << "\n";
     }
 
     return 0;
