@@ -33,7 +33,7 @@ class CABSwitch(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
     def __init__(self, *args, **kwargs):
-        super(SimpleSwitch13, self).__init__(*args, **kwargs)
+        super(CABSwitch, self).__init__(*args, **kwargs)
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -54,7 +54,7 @@ class CABSwitch(app_manager.RyuApp):
     def add_flow(self, datapath, table_id, priority, match, inst):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
-        mod = parser.OFPFlowMod(datapath=datapath, table_id = table_id, priority=priority, match=match, instructions=inst)
+        mod = parser.OFPFlowMod(datapath=datapath,hard_timeout=20, table_id = table_id, priority=priority, match=match, instructions=inst)
         datapath.send_msg(mod)
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
@@ -91,12 +91,16 @@ class CABSwitch(app_manager.RyuApp):
         ip_dst = ip_header.dst
         
         #try to pars tcp header
-        tcp_header = pkt.get_protocol(tcp.tcp)
-        src_port = tcp_header.src_port
-        dst_port = tcp_header.dst_port
-            
+        #tcp_header = pkt.get_protocol(tcp.tcp)
+        #src_port = tcp_header.src_port
+        #dst_port = tcp_header.dst_port
+        src_port = 0
+        dst_port = 0
         request = pkt_h(ipv4_to_int(ip_src),ipv4_to_int(ip_dst), src_port, dst_port)
         rules = query(request)
+        if rules == None:
+            self.logger.error("request rules for packet failed: %s %s",ip_src,ip_dst)
+            return
         #first install rules, rules[0] is bucket
         for rule in rules[1:]:
             match = parser.OFPMatch()

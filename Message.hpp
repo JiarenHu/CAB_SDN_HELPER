@@ -65,8 +65,8 @@ public:
     {
         uint32_t net_intger = htonl(intger);
         memcpy(data_ + header_length + body_length_, (char *)&net_intger, 4);
-	body_length_ += 4;
-	return true;
+        body_length_ += 4;
+        return true;
     }
 
 
@@ -75,14 +75,12 @@ public:
         std::memcpy(&body_length_, data_, header_length);
         body_length_ = ntohl(body_length_);
 
-        std::cerr << "header length " << body_length_ << std::endl;
-
         if (body_length_ > max_body_length)
         {
             body_length_ = 0;
             return false;
         }
-	is_header_network_ordered = false;
+        is_header_network_ordered = false;
         return true;
     }
 
@@ -90,14 +88,14 @@ public:
     {
         std::uint32_t body_length_net = htonl(body_length_);
         std::memcpy(data_, &body_length_net, 4);
-	is_header_network_ordered = true;
+        is_header_network_ordered = true;
     }
 
     void clear()
     {
         body_length_ = 0;
         std::memset(data_,0 ,header_length + max_body_length);
-	is_header_network_ordered = false;
+        is_header_network_ordered = false;
     }
 
 private:
@@ -105,8 +103,3 @@ private:
     std::uint32_t body_length_;
     bool is_header_network_ordered;
 };
-
-
-
-
-

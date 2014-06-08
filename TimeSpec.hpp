@@ -1,9 +1,21 @@
 #include <ctime>
+#include <string>
 const unsigned int NSEC_MAX = 1000000000;
 class TimeSpec
 {
 public:
     TimeSpec(__time_t tv_sec= 0, int tv_nsec= 0):time_point_ {tv_sec,tv_nsec} {}
+    TimeSpec(bool is_real_time)
+    {
+        if(is_real_time)
+        {
+            clock_gettime(CLOCK_REALTIME,&time_point_);
+        }
+        else
+        {
+            clock_gettime(CLOCK_MONOTONIC,&time_point_);
+        }
+    }
     TimeSpec(const timespec & t):time_point_(t) {}
     TimeSpec(const TimeSpec & t):time_point_(t.time_point_) {}
     TimeSpec(double dt)
@@ -20,6 +32,11 @@ public:
     timespec & get_timespec()
     {
         return time_point_;
+    }
+
+    std::string to_string()
+    {
+        return std::to_string(time_point_.tv_sec) + "." + std::to_string(time_point_.tv_nsec);
     }
 
     TimeSpec & operator=(const TimeSpec a)
@@ -64,7 +81,8 @@ TimeSpec operator - (const TimeSpec & a, const TimeSpec &b)
     TimeSpec rs;
     long nsec = a.time_point_.tv_nsec - b.time_point_.tv_nsec;
     rs.time_point_.tv_sec = a.time_point_.tv_sec - b.time_point_.tv_sec;
-    if(nsec < 0){
+    if(nsec < 0)
+    {
         nsec += NSEC_MAX;
         rs.time_point_.tv_sec -=1;
     }

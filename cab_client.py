@@ -2,6 +2,10 @@ import socket
 import struct
 import sys
 import array
+import logging
+
+logger = logging.getLogger("tcp")
+
 class pkt_h:
     def __init__(self,ip_src=0, ip_dst = 0, port_src = 0, port_dst = 0):
         self.ip_src = ip_src
@@ -53,24 +57,29 @@ def query(request):
 	s.send(message)
 	s.shutdown(socket.SHUT_WR)
 	data = s.recv(buffer_size)
-    except :
-        pass 
+        (body_length,) =  struct.unpack('!I',data[0:4])
+
+        rules_num = body_length/32
+        rules = [] 
+        for i in range(rules_num):
+            rules.append(bktOrR())
+            #ignore port
+            (rules[i].ip_src,rules[i].ip_src_mask,rules[i].ip_dst, rules[i].ip_dst_mask) = struct.unpack('!IIII', data[4 + i*32: 4+ i * 32 + 16])
+        return rules
+    except socket.error,(value,message):
+        logger.error("TCP error : %s %s",value,message)
     finally:
 	s.close()
 
-    (body_length,) =  struct.unpack('!I',data[0:4])
-
-    rules_num = body_length/32
-    print "cab client received: " + str(rules_num) + " rules"
-    rules = [] 
-    for i in range(rules_num):
-        rules.append(bktOrR())
-        #ignore port
-        (rules[i].ip_src,rules[i].ip_src_mask,rules[i].ip_dst, rules[i].ip_dst_mask) = struct.unpack('!IIII', data[4 + i*32: 4+ i * 32 + 16])
-    return rules
 #for test
 if __name__ == "__main__":
-    request = pkt_h(ipv4_to_int('10.0.0.1'),ipv4_to_int('10.0.0.2'), 4000,8000) 
+    src = ipv4_to_int('10.0.0.1')
+    dst =  ipv4_to_int('10.0.0.2')
+    src_str = ipv4_to_str(src)
+    dst_str = ipv4_to_str(dst)
+    print "int : %s %s" % (src,dst)
+    print "str : %s %s" % (src_str,dst_str)
+    request = pkt_h(src, dst, 4000, 8000) 
     rules = query(request)
     for i in rules:
     	print i

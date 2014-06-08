@@ -1,16 +1,21 @@
 #include <arpa/inet.h>
+#include <atomic>
 #include <cstdlib>
+#include <ctime>
 #include <deque>
 #include <iostream>
+#include <fstream>
 #include <list>
 #include <memory>
 #include <set>
 #include <string>
+#include <thread>
 #include <utility>
 #include <boost/asio.hpp>
 #include <boost/log/trivial.hpp>
 #include <utility>
 #include "Message.hpp"
+#include "TimeSpec.hpp"
 #include "../CAB_SDN/BucketTree.h"
 
 using boost::asio::ip::tcp;
@@ -193,9 +198,21 @@ public:
         : ios_(ios),
           acceptor_(ios, endpoint),
           adapter_(std::forward<Adapter>(adapter)),
-          skt(ios)
+          skt(ios),
+	  request_c(0)
     {
         do_accept();
+    }
+
+    unsigned long get_request_c()
+    {
+        return request_c.load();
+    }
+
+    void set_request_c(unsigned long i)
+    {
+
+        request_c = i;
     }
 
 private:
@@ -206,6 +223,7 @@ private:
         {
             if (!ec)
             {
+                ++request_c;
                 std::make_shared<session>(std::move(skt), container_, adapter_)->start();
             }
 
@@ -218,14 +236,15 @@ private:
     //session life cycle management
     std::set<std::shared_ptr<session>> container_;
     tcp::socket skt;
+    std::atomic_ulong request_c;
 };
 
 //----------------------------------------------------------------------
-//void boost_log_init()
-//{
-//    namespace logging = boost::log;
-//    namespace keywords = boost::log::keywords;
-//    namespace sinks = boost::log::sinks;
+void boost_log_init()
+{
+    namespace logging = boost::log;
+    namespace keywords = boost::log::keywords;
+    namespace sinks = boost::log::sinks;
 //    logging::add_file_log
 //    (
 //        keywords::file_name = "sample_%N.log",
@@ -234,34 +253,59 @@ private:
 //        keywords::format = "[%TimeStamp%]: %Message%"
 //    );
 //
-//    logging::core::get()->set_filter
-//    (
-//        logging::trivial::severity >= logging::trivial::debug
-//    );
-//}
-
+    logging::core::get()->set_filter
+    (
+        logging::trivial::severity > logging::trivial::debug
+    );
+}
+void collector(chat_server & cs, std::ostream & os)
+{
+    static TimeSpec zero(true);
+    static TimeSpec to_sleep(1,0);
+    while(true)
+    {
+        TimeSpec now;
+        clock_gettime(CLOCK_REALTIME,&now.time_point_);
+        os << (now - zero).to_string()<< "\t" << cs.get_request_c() << endl;
+        cs.set_request_c(0);
+        if(nanosleep(&to_sleep.time_point_,NULL))
+        {
+            BOOST_LOG_TRIVIAL(warning) << "nanosleep failed." << endl;
+        }
+    }
+}
 int main(int argc, char* argv[])
 {
     if(argc < 3)
     {
-        std::cerr << "Usage: CABDeamon {/path/to/rule/file} <port>"
+        std::cerr << "Usage: CABDeamon {rules_file} <port> {statistic_file}"
                   << std::endl;
         return 1;
     }
-//    boost_log_init();
+    boost_log_init();
     //initialize CAB
     std::string rulefile(argv[1]);
     rule_list rList(rulefile,true);
     BOOST_LOG_TRIVIAL(debug) << "Loading rules : " << rList.list.size() << std::endl;
     bucket_tree bTree(rList, 15, true);
     Adapter adapter(bTree);
+    std::ofstream st_out(argv[3]);
+    if(!st_out.is_open())
+    {
+        std::cerr << "Can not open statistic file." << endl;
+        return 2;
+    }
     try
     {
         boost::asio::io_service io_service;
         tcp::endpoint endpoint(tcp::v4(), std::atoi(argv[2]));
         chat_server server(io_service, endpoint , std::move(adapter));
         BOOST_LOG_TRIVIAL(info) << "Deamon running..." << endl;
+        std::thread collector_t(collector,std::ref(server),std::ref(st_out));
+        collector_t.detach();
+        BOOST_LOG_TRIVIAL(info) << "Collector running..." << endl;
         io_service.run();
+
     }
     catch (std::exception& e)
     {
