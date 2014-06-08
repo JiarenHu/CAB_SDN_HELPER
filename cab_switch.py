@@ -34,6 +34,8 @@ class CABSwitch(app_manager.RyuApp):
 
     def __init__(self, *args, **kwargs):
         super(CABSwitch, self).__init__(*args, **kwargs)
+        self.cab = cab_client()
+        self.cab.create_connection()
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -97,7 +99,7 @@ class CABSwitch(app_manager.RyuApp):
         src_port = 0
         dst_port = 0
         request = pkt_h(ipv4_to_int(ip_src),ipv4_to_int(ip_dst), src_port, dst_port)
-        rules = query(request)
+        rules = self.cab.query(request)
         if rules == None:
             self.logger.error("request rules for packet failed: %s %s",ip_src,ip_dst)
             return
