@@ -139,7 +139,6 @@ private:
         {
             if (!ec)
             {
-                socket_.shutdown(tcp::socket::shutdown_receive);
                 //do our job.
                 adapter_.process(msg_);
                 do_write(msg_);
@@ -162,7 +161,7 @@ private:
         {
             if (!ec)
             {
-                socket_.shutdown(tcp::socket::shutdown_send);
+                do_read_header();    
             }
             else
             {

@@ -39,39 +39,46 @@ def ipv4_to_int(string):
         b = int(b)
         i = (i << 8) | b
     return i 
+class cab_client:
+    def __init__(self):
+        self.server_ip = '128.238.147.221'
+        self.server_port = '9000'
+        self.bufer_size = 102400
+        self.skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    def create_connection(self):
+        if skt == None:
+            try:
+                self.skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.skt.connect((server_ip,server_port))
+            except socket.error,(value,message):
+                self.handle_error()
+    def handle_error(self):
+        self.skt = None
+        logger.error("TCP ERROR:\t%s %s",value,message)
+        logger.info("TCP INFO:\ttry to re-connect " + self.server_ip + " : " + self.server_port)
+        sleep(1)
+        self.create_connection()
 
-def query(request):
-    if not isinstance(request,pkt_h):
-        return None
-    request_len = 16
-    message = struct.pack('!IIIII',request_len, request.ip_src,request.ip_dst , request.port_src, request.port_dst)
-
-    server_ip = '127.0.0.1'
-    server_port = 9000
-    buffer_size = 10240
-    
-
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.connect((server_ip,server_port))
-	s.send(message)
-	s.shutdown(socket.SHUT_WR)
-	data = s.recv(buffer_size)
+    def query(request):
+        if not isinstance(request,pkt_h):
+            return None
+        request_len = 16
+        message = struct.pack('!IIIII',request_len, request.ip_src,request.ip_dst , request.port_src, request.port_dst)
+        try: 
+    	    s.send(message)
+    	    s.shutdown(socket.SHUT_WR)
+        except socket.error,(value,message):
+            self.handle_error()
+    	data = s.recv(buffer_size)
         (body_length,) =  struct.unpack('!I',data[0:4])
-
         rules_num = body_length/32
         rules = [] 
         for i in range(rules_num):
             rules.append(bktOrR())
             #ignore port
             (rules[i].ip_src,rules[i].ip_src_mask,rules[i].ip_dst, rules[i].ip_dst_mask) = struct.unpack('!IIII', data[4 + i*32: 4+ i * 32 + 16])
-        return rules
-    except socket.error,(value,message):
-        logger.error("TCP error : %s %s",value,message)
-    finally:
-	s.close()
-
+            return rules
+    
 #for test
 if __name__ == "__main__":
     src = ipv4_to_int('10.0.0.1')
