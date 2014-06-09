@@ -90,7 +90,6 @@ int main(int argc, char * argv[])
             //prepare packet data.
             uint8_t * pkt = nullptr;
             uint32_t  pkt_len = 0;
-            make_pkt(pkt_header,&pkt,&pkt_len);
 
             //get next packet out time.
             TimeSpec next_pkt(pkt_header.timestamp);
@@ -101,6 +100,7 @@ int main(int argc, char * argv[])
                 nanosleep(&to_sleep.time_point_,nullptr);
             }
 
+            make_pkt(pkt_header,&pkt,&pkt_len);
             pcap_sendpacket(pd,pkt,pkt_len);
             delete [] pkt;
         }
