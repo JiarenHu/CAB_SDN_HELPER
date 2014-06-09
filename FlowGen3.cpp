@@ -16,19 +16,28 @@ namespace io = boost::iostreams;
 
 int make_pkt(const addr_5tup & h, uint8_t ** data, uint32_t * pkt_len)
 {
-    uint32_t payload_size = 0;
+    
+    uint32_t payload_size = sizeof(timespec);
     uint32_t buffer_size = sizeof(sniff_ethernet) + sizeof(sniff_ip) + sizeof(sniff_tcp) + payload_size;
     uint8_t * buffer = new uint8_t[buffer_size];
     memset(buffer,0,buffer_size);
     sniff_ethernet * eth = (sniff_ethernet *)buffer;
     sniff_ip * ip = (sniff_ip *)(buffer+sizeof(sniff_ethernet));
     sniff_tcp * tcp = (sniff_tcp *)(buffer + sizeof(sniff_ethernet) + sizeof(sniff_ip));
+    uint8_t * body = buffer + sizeof(sniff_ethernet) + sizeof(sniff_ip) + sizeof(sniff_tcp);
+
+
     *eth = sniff_ethernet();
     *ip = sniff_ip();
     *tcp = sniff_tcp();
     ip->ip_src.s_addr = htonl(h.addrs[0]);
     ip->ip_dst.s_addr = htonl(h.addrs[1]);
     ip->ip_len = htonl(buffer_size - sizeof(sniff_ethernet));
+    
+    //make time stamp
+    timespec * timestamp = (timespec *)body;
+    clock_gettime(CLOCK_REALTIME,timestamp);
+
     *data = buffer;
     *pkt_len = buffer_size;
     return 0;
