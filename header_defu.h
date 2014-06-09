@@ -12,6 +12,7 @@ struct sniff_ethernet
     uint8_t ether_shost[ETHER_ADDR_LEN]; /* Source host address */
     uint16_t ether_type; /* IP? ARP? RARP? etc */
 };
+const int SIZE_ETHERNET = sizeof(sniff_ethernet);
 
 /* IP header */
 struct sniff_ip
@@ -42,6 +43,8 @@ struct sniff_ip
     uint16_t ip_sum;		/* checksum */
     struct in_addr ip_src,ip_dst; /* source and dest address */
 };
+const int SIZE_IP = sizeof(sniff_ip);
+
 
 /* TCP header */
 typedef uint32_t tcp_seq;
@@ -69,12 +72,4 @@ struct sniff_tcp
     uint16_t th_sum;		/* checksum */
     uint16_t th_urp;		/* urgent pointer */
 };
-
-
-
-
-
-
-
-
-
+const int SIZE_TCP = sizeof(sniff_tcp);

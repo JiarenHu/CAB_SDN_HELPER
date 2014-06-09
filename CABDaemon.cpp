@@ -266,7 +266,7 @@ void collector(Adapter & adp, std::ostream & os)
     {
         TimeSpec now;
         clock_gettime(CLOCK_REALTIME,&now.time_point_);
-        os << (now - zero).to_string()<< "\t" << adp.get_request_c() << endl;
+        os << (now - zero).to_double()<< "\t" << adp.get_request_c() << endl;
         adp.set_request_c(0);
         if(nanosleep(&to_sleep.time_point_,NULL))
         {

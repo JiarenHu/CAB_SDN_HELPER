@@ -1,5 +1,4 @@
-#include <ctime>
-#include <string>
+#include <time.h>
 const unsigned int NSEC_MAX = 1000000000;
 class TimeSpec
 {
@@ -34,11 +33,12 @@ public:
         return time_point_;
     }
 
-    std::string to_string()
+    double to_double()
     {
-        return std::to_string(time_point_.tv_sec) + "." + std::to_string(time_point_.tv_nsec);
+        double rs = time_point_.tv_sec;
+        rs += (double)time_point_.tv_nsec/NSEC_MAX;
+        return rs;
     }
-
     TimeSpec & operator=(const TimeSpec a)
     {
         time_point_ = a.time_point_;
