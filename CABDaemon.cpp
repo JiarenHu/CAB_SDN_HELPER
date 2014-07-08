@@ -255,7 +255,7 @@ void boost_log_init()
 //
     logging::core::get()->set_filter
     (
-        logging::trivial::severity > logging::trivial::debug
+        logging::trivial::severity >= logging::trivial::debug
     );
 }
 void collector(Adapter & adp, std::ostream & os)
@@ -266,7 +266,7 @@ void collector(Adapter & adp, std::ostream & os)
     {
         TimeSpec now;
         clock_gettime(CLOCK_REALTIME,&now.time_point_);
-        os << (now - zero).to_double()<< "\t" << adp.get_request_c() << endl;
+        os << now.time_point_.tv_sec<< "\t" << adp.get_request_c() << endl;
         adp.set_request_c(0);
         if(nanosleep(&to_sleep.time_point_,NULL))
         {
@@ -295,7 +295,7 @@ int main(int argc, char* argv[])
     rule_list rList(rulefile,true);
     BOOST_LOG_TRIVIAL(debug) << "Loading rules : " << rList.list.size() << std::endl;
     
-    bucket_tree bTree(rList, 15, true);
+    bucket_tree bTree(rList, 8, true);
 
     Adapter adapter(bTree);
     try

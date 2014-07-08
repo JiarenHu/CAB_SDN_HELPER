@@ -47,11 +47,12 @@ class cab_client:
         self.skt = None 
     def create_connection(self):
         if self.skt == None:
-            logger.info("server connected : %s %s",self.server_ip,self.server_port)
             try:
                 self.skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.skt.connect((self.server_ip,self.server_port))
-            except socket.error:
+                logger.info("server connected : %s %s", self.server_ip,self.server_port)
+            except socket.error as e:
+                logger.debug("error connected %s,%s", e.errno,e.message)
                 self.handle_error()
     def handle_error(self):
         if self.skt != None:
@@ -106,6 +107,8 @@ if __name__ == "__main__":
     print "int : %s %s" % (src,dst)
     print "str : %s %s" % (src_str,dst_str)
     request = pkt_h(src, dst, 4000, 8000) 
-    rules = query(request)
+    cab = cab_client() 
+    cab.create_connection()
+    rules = cab.query(request)
     for i in rules:
     	print i
