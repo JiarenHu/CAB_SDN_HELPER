@@ -1,16 +1,21 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
-#include <pcap.h>
+
+#include <stdio.h>
 #include <limits.h>
 #include <string.h>
-#include <list>
 #include <time.h>
-#include <thread>
+
+#include <atomic>
+#include <iostream>
+#include <list>
 #include <memory>
 #include <mutex>
-#include <iostream>
-#include <stdio.h>
+#include <thread>
+
 #include <boost/log/trivial.hpp>
+#include <pcap.h>
+
 #include "header_defu.h"
 
 //constant and helper functions with timespec
@@ -248,6 +253,7 @@ public:
         :pool_(pool),pkt_rate_(pkt_rate),running_(false)
     {
         pd = pcap_open_live(device,1514,1,1000,err_buf);
+        counter_ = 0;
     }
     void start()
     {
@@ -258,6 +264,15 @@ public:
     {
         running_ = false;
     };
+    
+    unsigned int getCounter(){
+        unsigned int value = counter_;
+        return value;
+    }
+
+    void setCounter(unsigned int value){
+        counter_ = value;
+    }
 
 private:
     headers_pool &pool_;
@@ -265,7 +280,7 @@ private:
     char err_buf[PCAP_ERRBUF_SIZE];
     unsigned int pkt_rate_;
     bool running_;
-
+    std::atomic_uint counter_;
 private:
     void gen()
     {
@@ -282,6 +297,7 @@ private:
 
                 //std::cerr <<"sent a packet." << std::endl;
                 delete [] pkt_data;
+                ++counter_;
             }
             else
             {
@@ -335,6 +351,26 @@ private:
     }
 };
 
+class PktNDumper{
+    public:
+        PktNDumper(PacketGen &packet_generator):is_running_(false),packet_generator_(packet_generator){}
+        void start(){
+            is_running_ = true;
+            dump();
+        }
+    private:
+        bool is_running_;
+        PacketGen &packet_generator_;
+        void dump(){
+            while(is_running_){
+                sleep(1);
+                unsigned int num_sent_packets = packet_generator_.getCounter();
+                packet_generator_.setCounter(0);
+                printf("%u\n",num_sent_packets);
+            }
+        }
+    
+};
 
 int main(int argc, char *argv[])
 {
@@ -350,14 +386,16 @@ int main(int argc, char *argv[])
     headers_pool pool;
     FlowGen flow_generator(pool,flow_rate,duration);
     PacketGen packet_generator(pool,device,packet_rate);
-
+    PktNDumper pkt_dumper(packet_generator);
     std::thread flow_gen_thr(&FlowGen::start,&flow_generator);
     std::thread pkt_gen_thr(&PacketGen::start,&packet_generator);
+    std::thread pkt_dump_thr(&PktNDumper::start,&pkt_dumper);
 //    flow_gen_thr.detach();
 //    pkt_gen_thr.detach();
 
     flow_gen_thr.join();
     pkt_gen_thr.join();
+    pkt_dump_thr.join();
 //    getchar();
 //    flow_generator.stop();
 //    packet_generator.stop();
