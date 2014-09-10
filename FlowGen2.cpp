@@ -47,7 +47,7 @@ void timespec_set(timespec *tv, double dt)
     tv->tv_nsec = us - tv->tv_sec*NSEC_MAX;
 }
 
-
+//object in headers_pool
 class header
 {
 public:
@@ -203,7 +203,7 @@ private:
 
     header make_header()
     {
-        //you can custom header here
+        //you can customize header here
         header rs;
         //timestamp
         timespec dr,now;
@@ -314,6 +314,7 @@ private:
         t->tv_nsec = (NSEC_MAX - 1)/pkt_rate_;
     }
 
+    //actual binary packet generate function
     void gen_pkt(header &h, uint8_t ** pkt_data, uint32_t *pkt_len)
     {
         uint32_t payload_size = 0;

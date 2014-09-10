@@ -2,6 +2,7 @@
 #include <arpa/inet.h>
 #include <cstring>
 #include <iostream>
+//This Message class define a message format between CABDaemon Server and Client.
 class Message
 {
 public:
@@ -49,7 +50,8 @@ public:
         if (body_length_ > max_body_length)
             body_length_ = max_body_length;
     }
-
+    
+    ///append binary data.
     bool append(char * data, uint32_t length)
     {
         if(body_length_ + length > max_body_length)
@@ -60,7 +62,7 @@ public:
         body_length_ += length;
         return true;
     }
-
+    ///append unsigned int,automatically convert to network order.
     bool append_uint(uint32_t intger)
     {
         uint32_t net_intger = htonl(intger);
@@ -69,7 +71,7 @@ public:
         return true;
     }
 
-
+    ///before sent out, header should be encoded.
     bool decode_header()
     {
         std::memcpy(&body_length_, data_, header_length);
@@ -84,6 +86,7 @@ public:
         return true;
     }
 
+    ///after received, header should be decoded.
     void encode_header()
     {
         std::uint32_t body_length_net = htonl(body_length_);

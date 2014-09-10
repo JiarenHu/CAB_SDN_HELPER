@@ -28,6 +28,8 @@ int make_pkt(const addr_5tup & h, uint8_t ** data, uint32_t * pkt_len)
 
 
     *eth = sniff_ethernet();
+    eth->ether_shost[0] = 10;
+    eth->ether_dhost[5] = 10;
     *ip = sniff_ip();
     *tcp = sniff_tcp();
     ip->ip_src.s_addr = htonl(h.addrs[0]);
