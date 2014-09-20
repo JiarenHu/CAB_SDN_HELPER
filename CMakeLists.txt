@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 project(CAB_SDN)
 
 set(CMAKE_CXX_COMPILER /usr/bin/g++)
-set(CMAKE_CXX_FLAGS "-std=c++11 -g")
+set(CMAKE_CXX_FLAGS "-std=c++11")
 
 find_package(Boost 1.55.0 REQUIRED COMPONENTS system thread filesystem iostreams log log_setup)
 if(Boost_FOUND)

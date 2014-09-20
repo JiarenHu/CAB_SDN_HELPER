@@ -13,7 +13,7 @@
 using namespace std;
 namespace fs = boost::filesystem;
 namespace io = boost::iostreams;
-
+unsigned int pkt_cnt = 0;
 int make_pkt(const addr_5tup & h, uint8_t ** data, uint32_t * pkt_len)
 {
     
@@ -39,9 +39,11 @@ int make_pkt(const addr_5tup & h, uint8_t ** data, uint32_t * pkt_len)
     //make time stamp
     timespec * timestamp = (timespec *)body;
     clock_gettime(CLOCK_REALTIME,timestamp);
-
+   
     *data = buffer;
     *pkt_len = buffer_size;
+
+    pkt_cnt++;
     return 0;
 }
 
@@ -96,12 +98,15 @@ int main(int argc, char * argv[])
             //get next packet out time.
             TimeSpec next_pkt(pkt_header.timestamp);
             clock_gettime(CLOCK_MONOTONIC,&now.time_point_);
+//            cout << "now : " <<now.to_double() - zero.to_double()<< "\t next : " << next_pkt.to_double()<<"\t";
             if(now < zero + next_pkt)
             {
                 TimeSpec to_sleep = next_pkt + zero - now;
+//                cout << "sleep : " << to_sleep.to_double()*1000<<"ms\t";
                 nanosleep(&to_sleep.time_point_,nullptr);
             }
-
+            clock_gettime(CLOCK_MONOTONIC,&now.time_point_);
+//            cout << "wake : " << now.to_double() - zero.to_double()<< endl;
             make_pkt(pkt_header,&pkt,&pkt_len);
             pcap_sendpacket(pd,pkt,pkt_len);
             delete [] pkt;

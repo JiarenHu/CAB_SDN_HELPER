@@ -45,7 +45,7 @@ public:
         return *this;
     }
 
-    bool operator<(const TimeSpec a)
+    bool operator<(const TimeSpec &a) const
     {
         if(time_point_.tv_sec != a.time_point_.tv_sec)
         {
