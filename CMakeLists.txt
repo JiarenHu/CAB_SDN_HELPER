@@ -20,6 +20,7 @@ add_executable(trace2pcap pcap_dump.cpp)
 add_executable(FlowGen FlowGen.cpp)
 add_executable(FlowGen2 FlowGen2.cpp)
 add_executable(FlowGen3 FlowGen3.cpp)
+add_executable(Listener Listener.cpp)
 if(UNIX)
 	target_link_libraries(
 		CABDaemon
@@ -48,6 +49,11 @@ if(UNIX)
         pcap
         rt
         ${Boost_LIBRARIES}
+        )
+    target_link_libraries(
+        Listener
+        pcap
+        rt
         )
 elseif(WIN32)
 elseif(APPLE)

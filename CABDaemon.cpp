@@ -24,7 +24,7 @@ using boost::asio::ip::tcp;
 class Adapter
 {
 public:
-    Adapter(bucket_tree & bTree):bTree_(bTree)
+    Adapter(bucket_tree & bTree):bTree_(bTree),request_c(0)
     {
     }
 
@@ -71,9 +71,21 @@ public:
 
         }
         msg.encode_header();
+	++request_c;
+    }
+    unsigned long get_request_c()
+    {
+        return request_c.load();
+    }
+
+    void set_request_c(unsigned long i)
+    {
+
+        request_c = i;
     }
 private:
     bucket_tree & bTree_;
+    std::atomic_ulong request_c;
 };
 
 
@@ -124,7 +136,7 @@ private:
             }
             else
             {
-                handle_error();
+                handle_error(ec.message());
                 container_.erase(shared_from_this());
             }
         });
@@ -145,7 +157,7 @@ private:
             }
             else
             {
-                handle_error();
+                handle_error(ec.message());
                 container_.erase(shared_from_this());
             }
         });
@@ -165,15 +177,16 @@ private:
             }
             else
             {
-                handle_error();
+                handle_error(ec.message());
             }
             container_.erase(shared_from_this());
         });
     }
 
 
-    void handle_error()
+    void handle_error(std::string message)
     {
+	BOOST_LOG_TRIVIAL(error)  <<message << endl;
         if(socket_.is_open())
         {
             socket_.close();
@@ -193,25 +206,13 @@ class chat_server
 public:
     chat_server(boost::asio::io_service& ios,
                 const tcp::endpoint& endpoint,
-                Adapter && adapter)
+                Adapter & adapter)
         : ios_(ios),
           acceptor_(ios, endpoint),
-          adapter_(std::forward<Adapter>(adapter)),
-          skt(ios),
-	  request_c(0)
+          adapter_(adapter),
+          skt(ios)
     {
         do_accept();
-    }
-
-    unsigned long get_request_c()
-    {
-        return request_c.load();
-    }
-
-    void set_request_c(unsigned long i)
-    {
-
-        request_c = i;
     }
 
 private:
@@ -222,20 +223,20 @@ private:
         {
             if (!ec)
             {
-                ++request_c;
                 std::make_shared<session>(std::move(skt), container_, adapter_)->start();
-            }
+            }else{
+	    	BOOST_LOG_TRIVIAL(error) << ec.message() << endl;
+	    }
 
             do_accept();
         });
     }
     boost::asio::io_service & ios_;
     tcp::acceptor acceptor_;
-    Adapter adapter_;
+    Adapter &adapter_;
     //session life cycle management
     std::set<std::shared_ptr<session>> container_;
     tcp::socket skt;
-    std::atomic_ulong request_c;
 };
 
 //----------------------------------------------------------------------
@@ -254,10 +255,10 @@ void boost_log_init()
 //
     logging::core::get()->set_filter
     (
-        logging::trivial::severity > logging::trivial::debug
+        logging::trivial::severity >= logging::trivial::debug
     );
 }
-void collector(chat_server & cs, std::ostream & os)
+void collector(Adapter & adp, std::ostream & os)
 {
     static TimeSpec zero(true);
     static TimeSpec to_sleep(1,0);
@@ -265,8 +266,8 @@ void collector(chat_server & cs, std::ostream & os)
     {
         TimeSpec now;
         clock_gettime(CLOCK_REALTIME,&now.time_point_);
-        os << (now - zero).to_string()<< "\t" << cs.get_request_c() << endl;
-        cs.set_request_c(0);
+        os << now.time_point_.tv_sec<< "\t" << adp.get_request_c() << endl;
+        adp.set_request_c(0);
         if(nanosleep(&to_sleep.time_point_,NULL))
         {
             BOOST_LOG_TRIVIAL(warning) << "nanosleep failed." << endl;
@@ -281,26 +282,29 @@ int main(int argc, char* argv[])
                   << std::endl;
         return 1;
     }
-    boost_log_init();
-    //initialize CAB
-    std::string rulefile(argv[1]);
-    rule_list rList(rulefile,true);
-    BOOST_LOG_TRIVIAL(debug) << "Loading rules : " << rList.list.size() << std::endl;
-    bucket_tree bTree(rList, 15, true);
-    Adapter adapter(bTree);
     std::ofstream st_out(argv[3]);
     if(!st_out.is_open())
     {
         std::cerr << "Can not open statistic file." << endl;
         return 2;
     }
+    //init log
+    boost_log_init();
+    //initialize CAB
+    std::string rulefile(argv[1]);
+    rule_list rList(rulefile,true);
+    BOOST_LOG_TRIVIAL(debug) << "Loading rules : " << rList.list.size() << std::endl;
+    
+    bucket_tree bTree(rList, 8, true);
+
+    Adapter adapter(bTree);
     try
     {
         boost::asio::io_service io_service;
         tcp::endpoint endpoint(tcp::v4(), std::atoi(argv[2]));
-        chat_server server(io_service, endpoint , std::move(adapter));
+        chat_server server(io_service, endpoint , adapter);
         BOOST_LOG_TRIVIAL(info) << "Deamon running..." << endl;
-        std::thread collector_t(collector,std::ref(server),std::ref(st_out));
+        std::thread collector_t(collector,std::ref(adapter),std::ref(st_out));
         collector_t.detach();
         BOOST_LOG_TRIVIAL(info) << "Collector running..." << endl;
         io_service.run();
