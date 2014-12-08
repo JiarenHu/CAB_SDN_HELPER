@@ -1,5 +1,3 @@
-# Copyright (C) 2011 Nippon Telegraph and Telephone Corporation.
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,12 +25,15 @@ class record:
     def __init__(self, cookie, timestamp):
         self.cookie=cookie
         self.timestamp=timestamp
-
-class SimpleSwitch13(app_manager.RyuApp):
+#This switch will install two direction flows in switch with two seconds hard timeout
+#for each comming new flows.
+#It will randomly remove one flows in switch once it recieves table full error message
+#from switch.
+class TableOverFlowSwitch(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
     def __init__(self, *args, **kwargs):
-        super(SimpleSwitch13, self).__init__(*args, **kwargs)
+        super(TableOverFlowSwitch, self).__init__(*args, **kwargs)
         self.mac_to_port = {}
         self.entries_list = []
         self.cookie = 0
