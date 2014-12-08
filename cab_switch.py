@@ -47,6 +47,14 @@ class CABSwitch(app_manager.RyuApp):
         mod = parser.OFPFlowMod(datapath=datapath,hard_timeout=hard_timeout, table_id = table_id, priority=priority, match=match, instructions=inst, buffer_id = buffer_id)
         datapath.send_msg(mod)
 
+    def add_icmp_echo(self,datapath):
+        match = parser.OFPMatch(in_port = 8)
+        match.set_dl_type(ether.ETH_TYPE_IP)#
+        match.set_ip_proto(inet.IPPROTO_ICMP)#
+        actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER)]
+        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,actions)]
+        self.add_flow(datapath, 0, 0, match, inst, ofproto.OFP_NO_BUFFER,0)
+        
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
         msg = ev.msg

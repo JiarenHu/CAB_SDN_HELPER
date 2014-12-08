@@ -19,9 +19,9 @@ public:
     TimeSpec(const TimeSpec & t):time_point_(t.time_point_) {}
     TimeSpec(double dt)
     {
-        unsigned long us = dt*NSEC_MAX;
-        time_point_.tv_sec = us / NSEC_MAX;
-        time_point_.tv_nsec = us - time_point_.tv_sec*NSEC_MAX;
+        unsigned long us = dt;
+        time_point_.tv_sec = us;
+        time_point_.tv_nsec = (dt - us)*NSEC_MAX;
     }
 
     timespec get_timespec()const
@@ -39,9 +39,9 @@ public:
         rs += (double)time_point_.tv_nsec/NSEC_MAX;
         return rs;
     }
-    TimeSpec & operator=(const TimeSpec a)
+    TimeSpec & operator=(const TimeSpec & other)
     {
-        time_point_ = a.time_point_;
+        time_point_ = other.time_point_;
         return *this;
     }
 
@@ -79,7 +79,7 @@ TimeSpec operator - (const TimeSpec & a, const TimeSpec &b)
 {
 
     TimeSpec rs;
-    long nsec = a.time_point_.tv_nsec - b.time_point_.tv_nsec;
+    long  nsec = a.time_point_.tv_nsec - b.time_point_.tv_nsec;
     rs.time_point_.tv_sec = a.time_point_.tv_sec - b.time_point_.tv_sec;
     if(nsec < 0)
     {

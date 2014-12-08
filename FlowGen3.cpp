@@ -39,7 +39,8 @@ int make_pkt(const addr_5tup & h, uint8_t ** data, uint32_t * pkt_len)
     //make time stamp
     timespec * timestamp = (timespec *)body;
     clock_gettime(CLOCK_REALTIME,timestamp);
-   
+    timestamp->tv_sec = htobe64(timestamp->tv_sec);
+    timestamp->tv_nsec = htobe64(timestamp->tv_nsec);
     *data = buffer;
     *pkt_len = buffer_size;
 
@@ -96,7 +97,7 @@ int main(int argc, char * argv[])
             uint32_t  pkt_len = 0;
 
             //get next packet out time.
-            TimeSpec next_pkt(pkt_header.timestamp);
+            TimeSpec next_pkt(pkt_header.timestamp*100);
             clock_gettime(CLOCK_MONOTONIC,&now.time_point_);
 //            cout << "now : " <<now.to_double() - zero.to_double()<< "\t next : " << next_pkt.to_double()<<"\t";
             if(now < zero + next_pkt)

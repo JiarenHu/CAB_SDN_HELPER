@@ -55,6 +55,8 @@ void call_back( uint8_t *user,
         const uint8_t *body = pktdata + body_offset;
         TimeSpec now(true);
         TimeSpec sent(*(timespec* )body);
+        sent.time_point_.tv_sec = be64toh(sent.time_point_.tv_sec);
+        sent.time_point_.tv_nsec = be64toh(sent.time_point_.tv_nsec);
         TimeSpec delay = now - sent;
         delays[pkt_cnt] = now.to_double() - sent.to_double(); 
 
@@ -85,9 +87,6 @@ void int_handler(int sig)
 {
     pcap_breakloop(pd);
 
-    for(int i = 0; i < pkt_cnt; ++i){
-        printf("packet # : %u\t%lfs\n",i,delays[i]);
-    }
 }
 
 int main(int argc,char * argv [])
@@ -103,6 +102,8 @@ int main(int argc,char * argv [])
     signal(SIGINT,int_handler);
     pcap_loop(pd,-1,call_back,NULL);
 
-    fwrite(delays,sizeof(double),pkt_cnt,log);
+    for(int i = 0; i < pkt_cnt; ++i){
+        fprintf(log,"packet # : %u\t%lfs\n",i,delays[i]);
+    }
     fclose(log);
 }
