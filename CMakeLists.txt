@@ -11,16 +11,17 @@ if(Boost_FOUND)
     add_definitions(-DBOOST_LOG_DYN_LINK)
 endif()
 set(libcab_include "../CAB_SDN")
-set(libcab_lib "/home/zishuo/projects/CAB_SDN/build/libcab.a")
+set(libcab_lib "/home/bigmac-admin/Junan/CAB_SDN/build/libcab.a")
 include_directories(./)
 include_directories(${libcab_include})
 
 add_executable(CABDaemon CABDaemon.cpp)
-add_executable(trace2pcap pcap_dump.cpp)
-add_executable(FlowGen FlowGen.cpp)
-add_executable(FlowGen2 FlowGen2.cpp)
+add_executable(CMRDaemon CMRDaemon.cpp)
+
+#add_executable(FlowGen FlowGen.cpp)
+#add_executable(FlowGen2 FlowGen2.cpp)
 add_executable(FlowGen3 FlowGen3.cpp)
-add_executable(Listener Listener.cpp)
+
 if(UNIX)
 	target_link_libraries(
 		CABDaemon
@@ -28,33 +29,29 @@ if(UNIX)
 		${Boost_LIBRARIES}
 		pthread
 		)
-	target_link_libraries(
-		trace2pcap
+    target_link_libraries(
+        CMRDaemon
         ${libcab_lib}
-		${Boost_LIBRARIES}
-		pcap
-		)
-    target_link_libraries(
-        FlowGen
-        pcap
-        rt
+        ${Boost_LIBRARIES}
+        pthread
         )
-    target_link_libraries(
-        FlowGen2
-        pcap
-        rt
-        )
+#    target_link_libraries(
+#        FlowGen
+#        pcap
+#        rt
+#        )
+#    target_link_libraries(
+#        FlowGen2
+#        pcap
+#        rt
+#        )
     target_link_libraries(
         FlowGen3
         pcap
         rt
         ${Boost_LIBRARIES}
         )
-    target_link_libraries(
-        Listener
-        pcap
-        rt
-        )
+
 elseif(WIN32)
 elseif(APPLE)
 endif(UNIX)

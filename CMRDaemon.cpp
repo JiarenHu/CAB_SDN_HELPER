@@ -21,12 +21,26 @@
 
 using boost::asio::ip::tcp;
 
-// std::set<string> buckets;
+string str_readable(const addr_5tup & h){
+    stringstream ss;
+    for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t j = 0; j < 4; j++) {
+            ss << ((h.addrs[i] >> (24-8*j)) & ((1<<8)-1));
+            if (j!=3)
+                ss<<".";
+        }
+        ss<<"\t";
+    }
+    for (uint32_t i = 2; i < 4; i++)
+        ss<<h.addrs[i]<<"\t";
+
+    return ss.str();
+}
 
 class Adapter
 {
 public:
-    Adapter(bucket_tree & bTree):bTree_(bTree),request_c(0)
+    Adapter(rule_list & rList):rList_(rList),request_c(0)
     {
     }
 
@@ -42,47 +56,22 @@ public:
             pkt_h.addrs[i] = word;
         }
         msg.clear();
-        std::pair<bucket*, int> bpair;
-        bpair = bTree_.search_bucket(pkt_h,bTree_.root);
-        bucket * b = bpair.first;
-        // if (buckets.find(b->get_str()) == buckets.end()){
-        //     buckets.insert(b->get_str());
-        //     cout<<b->get_str()<<endl;
-        // }
-        // BOOST_LOG_TRIVIAL(debug) << b->get_str() << endl;
-        if(b != nullptr)
-        {
-            msg.append_uint(b->addrs[0].pref);
-            msg.append_uint(b->addrs[0].mask);
-            msg.append_uint(b->addrs[1].pref);
-            msg.append_uint(b->addrs[1].mask);
-            msg.append_uint(b->addrs[2].pref);
-            msg.append_uint(b->addrs[2].mask);
-            msg.append_uint(b->addrs[3].pref);
-            msg.append_uint(b->addrs[3].mask);
-            msg.append_uint(0);
-
-            auto & rule_ids = b->related_rules;
-            auto & rule_list = bTree_.rList->list;
-            for(uint32_t id : rule_ids)
-            {
-                b_rule approx_b(rule_list[id].cast_to_bRule());
-                // BOOST_LOG_TRIVIAL(debug) << rule_list[id].get_str() << endl;
-                // BOOST_LOG_TRIVIAL(debug) << approx_b.get_str() << endl << endl;
-                msg.append_uint(approx_b.addrs[0].pref);
-                msg.append_uint(approx_b.addrs[0].mask);
-                msg.append_uint(approx_b.addrs[1].pref);
-                msg.append_uint(approx_b.addrs[1].mask);
-                msg.append_uint(approx_b.addrs[2].pref);
-                msg.append_uint(approx_b.addrs[2].mask);
-                msg.append_uint(approx_b.addrs[3].pref);
-                msg.append_uint(approx_b.addrs[3].mask);
-                msg.append_uint(id);
-            }
-
-        }
+        // BOOST_LOG_TRIVIAL(debug) << str_readable(pkt_h) << endl;
+        r_rule MRrule(rList_.get_micro_rule(pkt_h));
+        // BOOST_LOG_TRIVIAL(debug) << MRrule.get_str() << endl;
+        b_rule approx_b(MRrule.cast_to_bRule());
+        // BOOST_LOG_TRIVIAL(debug) << approx_b.get_str() << endl << endl;
+        msg.append_uint(approx_b.addrs[0].pref);
+        msg.append_uint(approx_b.addrs[0].mask);
+        msg.append_uint(approx_b.addrs[1].pref);
+        msg.append_uint(approx_b.addrs[1].mask);
+        msg.append_uint(approx_b.addrs[2].pref);
+        msg.append_uint(approx_b.addrs[2].mask);
+        msg.append_uint(approx_b.addrs[3].pref);
+        msg.append_uint(approx_b.addrs[3].mask);
+        msg.append_uint(0);
         msg.encode_header();
-	++request_c;
+    ++request_c;
     }
     unsigned long get_request_c()
     {
@@ -95,11 +84,9 @@ public:
         request_c = i;
     }
 private:
-    bucket_tree & bTree_;
+    rule_list & rList_;
     std::atomic_ulong request_c;
 };
-
-
 
 
 
@@ -305,12 +292,10 @@ int main(int argc, char* argv[])
     //initialize CAB
     std::string rulefile(argv[1]);
     rule_list rList(rulefile,false);
+    rList.obtain_dep();
     BOOST_LOG_TRIVIAL(debug) << "Loading rules : " << rList.list.size() << std::endl;
 
-    bucket_tree bTree(rList, 20, false);
-    bTree.pre_alloc();
-
-    Adapter adapter(bTree);
+    Adapter adapter(rList);
     try
     {
         boost::asio::io_service io_service;

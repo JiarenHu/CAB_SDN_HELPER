@@ -9,13 +9,14 @@ logger = logging.getLogger("tcp")
 class pkt_h:
     def __init__(self,ip_src=0, ip_dst = 0, port_src = 0, port_dst = 0):
         self.ip_src = ip_src
-	self.ip_dst = ip_dst
-	self.port_src = port_src 
-	self.port_dst = port_dst
+        self.ip_dst = ip_dst
+        self.port_src = port_src 
+        self.port_dst = port_dst
 
 class bktOrR(object):
-    def __init__(self, ip_src = 0, ip_src_mask = 0, ip_dst = 0, ip_dst_mask = 0, port_src = 0, port_src_mask = 0, port_dst = 0, port_dst_mask = 0):
-	self.ip_src = ip_src
+    def __init__(self, ip_src = 0, ip_src_mask = 0, ip_dst = 0, ip_dst_mask = 0, port_src = 0, 
+                 port_src_mask = 0, port_dst = 0, port_dst_mask = 0, priority = 0):
+        self.ip_src = ip_src
         self.ip_src_mask = ip_src_mask
         self.ip_dst = ip_dst
         self.ip_dst_mask = ip_dst_mask
@@ -23,8 +24,10 @@ class bktOrR(object):
         self.port_src_mask = port_src_mask
         self.port_dst = port_dst
         self.port_dst_mask = port_dst_mask
+        self.priority = priority
     def __str__(self):
-	return "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t" % (self.ip_src, self.ip_src_mask, self.ip_dst, self.ip_dst_mask, self.port_src, self.port_src_mask, self.port_dst, self.port_dst_mask) 
+        return "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t" % (self.ip_src, self.ip_src_mask, self.ip_dst, self.ip_dst_mask, self.port_src, 
+                                                         self.port_src_mask, self.port_dst, self.port_dst_mask, self.priority) 
     
 def ipv4_to_str(integre):
     ip_list = [str((integre >> (24 - (n * 8)) & 255)) for n in range(4)]
@@ -36,6 +39,24 @@ def ipv4_to_int(string):
     i = 0
     for b in ip:
         b = int(b)
+        i = (i << 8) | b
+    return i 
+
+def eth_to_str(integer):
+    eth_list = [hex(integer >> (44 - (n * 8)) & 15)[2:] + hex(integer >> (40 - (n * 8)) & 15)[2:] for n in range(6)]
+    return ':'.join(eth_list)
+
+def eth_mask_to_str(integer):
+    eth_list = [hex(integer >> (44 - (n * 8)) & 15)[2:] + hex(integer >> (40 - (n * 8)) & 15)[2:] for n in range(6)]
+    mask_temp = ':'.join(eth_list)
+    return 'ff:ff:'+mask_temp[6:]
+
+def eth_to_int(string):
+    eth = string.split(':')
+    assert len(eth) == 6
+    i = 0
+    for b in eth:
+        b = int(b,16)
         i = (i << 8) | b
     return i 
 ################################################################################
@@ -90,12 +111,15 @@ class cab_client:
             self.handle_error()
             return None
             
-        rules_num = body_len/32
+        rules_num = body_len/36
         rules = [] 
         for i in range(rules_num):
             rules.append(bktOrR())
             #ignore port
-            (rules[i].ip_src,rules[i].ip_src_mask,rules[i].ip_dst, rules[i].ip_dst_mask) = struct.unpack('!IIII', body_raw[ i * 32: i * 32 + 16])
+            #(rules[i].ip_src,rules[i].ip_src_mask,rules[i].ip_dst, rules[i].ip_dst_mask) = struct.unpack('!IIII', body_raw[ i * 32: i * 32 + 16])
+            #include port
+            (rules[i].ip_src,rules[i].ip_src_mask,rules[i].ip_dst, rules[i].ip_dst_mask, rules[i].port_src, rules[i].port_src_mask, 
+             rules[i].port_dst, rules[i].port_dst_mask, rules[i].priority) = struct.unpack('!IIIIIIIII', body_raw[ i * 36: i * 36 + 36])
         return rules
     
 #for test

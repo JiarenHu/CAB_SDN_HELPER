@@ -4,6 +4,7 @@
 #include <pcap.h>
 #include <fstream>
 #include <string>
+#include <set>
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/filesystem.hpp>
@@ -13,6 +14,24 @@
 using namespace std;
 namespace fs = boost::filesystem;
 namespace io = boost::iostreams;
+
+// std::set<string> flows;
+
+// string str_readable(const addr_5tup & h){
+//     stringstream ss;
+//     for (uint32_t i = 0; i < 2; i++) {
+//         for (uint32_t j = 0; j < 4; j++) {
+//             ss << ((h.addrs[i] >> (24-8*j)) & ((1<<8)-1));
+//             if (j!=3)
+//                 ss<<".";
+//         }
+//         ss<<"\t";
+//     }
+//     for (uint32_t i = 2; i < 4; i++)
+//         ss<<h.addrs[i]<<"\t";
+
+//     return ss.str();
+// }
 
 int make_pkt(const addr_5tup & h, uint8_t ** data, uint32_t * pkt_len)
 {
@@ -28,8 +47,10 @@ int make_pkt(const addr_5tup & h, uint8_t ** data, uint32_t * pkt_len)
 
 
     *eth = sniff_ethernet();
-    eth->ether_shost[0] = 10;
-    eth->ether_dhost[5] = 10;
+    uint32_t src_port = htonl(h.addrs[2]);
+    uint32_t dst_port = htonl(h.addrs[3]);
+    memcpy(eth->ether_shost + 2, &src_port, 4);
+    memcpy(eth->ether_dhost + 2, &dst_port, 4);
     *ip = sniff_ip();
     *tcp = sniff_tcp();
     ip->ip_src.s_addr = htonl(h.addrs[0]);
@@ -47,9 +68,9 @@ int make_pkt(const addr_5tup & h, uint8_t ** data, uint32_t * pkt_len)
 
 int main(int argc, char * argv[])
 {
-    if(argc < 4)
+    if(argc < 5)
     {
-        cerr << "Usage: FlowGen {trace_file} {-i interface |-f pcap_file} "<< endl;
+        cerr << "Usage: FlowGen {trace_file} {-i interface |-f pcap_file} factor"<< endl;
         return 1;
     }
 
@@ -76,6 +97,7 @@ int main(int argc, char * argv[])
         return 3;
     }
 
+    int factor = atoi(argv[4]);
     try
     {
         io::filtering_istream in;
@@ -84,6 +106,8 @@ int main(int argc, char * argv[])
         string line;
         TimeSpec zero,now;
         clock_gettime(CLOCK_MONOTONIC,&zero.time_point_);
+        std::ofstream ofs;
+        // ofs.open("./flows", std::ofstream::out);
         while(getline(in,line))
         {
             //read header.
@@ -94,7 +118,7 @@ int main(int argc, char * argv[])
             uint32_t  pkt_len = 0;
 
             //get next packet out time.
-            TimeSpec next_pkt(pkt_header.timestamp);
+            TimeSpec next_pkt(pkt_header.timestamp*factor);
             clock_gettime(CLOCK_MONOTONIC,&now.time_point_);
             if(now < zero + next_pkt)
             {
@@ -102,10 +126,18 @@ int main(int argc, char * argv[])
                 nanosleep(&to_sleep.time_point_,nullptr);
             }
 
+            // string ph_str (str_readable(pkt_header));
+            // if (flows.find(ph_str) == flows.end())
+            // {
+            //     flows.insert(ph_str);
+            //     ofs << ph_str << endl;
+            // }
+
             make_pkt(pkt_header,&pkt,&pkt_len);
             pcap_sendpacket(pd,pkt,pkt_len);
             delete [] pkt;
         }
+        // ofs.close();
     }
     catch(std::exception & e)
     {
